@@ -42,19 +42,18 @@ Test checklist:
 ## Project structure
 collaborative-canvas/
 ├── client/
-│   ├── index.html
-│   ├── style.css
-│   ├── canvas.js          # Canvas drawing logic
-│   ├── websocket.js      # WebSocket (Socket.io) client
-│   └── main.js           # UI wiring and handlers
+│ ├── index.html # Main HTML file
+│ ├── style.css # Styles for the canvas UI
+│ ├── canvas.js # Canvas drawing logic
+│ ├── websocket.js # WebSocket (Socket.io) client
+│ └── main.js # UI wiring and handlers
 ├── server/
-│   ├── server.js         # Express + Socket.io server
-│   ├── rooms.js          # Room + user management
-│   └── drawing-state.js  # Operation history (undo/redo)
-├── package.json
-├── README.md
-└── ARCHITECTURE.md
-
+│ ├── server.js # Express + Socket.io server
+│ ├── rooms.js # Room + user management
+│ └── drawing-state.js # Operation history (undo/redo)
+├── package.json # Project dependencies and scripts
+├── README.md # Project overview and documentation
+└── ARCHITECTURE.md # Detailed system architecture
 
 ## Known limitations / bugs
 
@@ -71,9 +70,6 @@ collaborative-canvas/
 - Limited testing on mobile browsers: basic pointer events supported; some devices may require tuning.
 
 ## Time spent
-Estimated 6–10 hours to design, implementation, testing, and deployment..
+Estimated 6–10 hours to design, implementation, testing, and deployment.
 
-## Deployment
-Deploy to any host that supports Node.js (Heroku, Render, VPS).
-Ensure `PORT` env var is present or default 3000 used.
 
