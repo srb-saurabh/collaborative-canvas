@@ -40,6 +40,7 @@ Test checklist:
 - Clear → canvas clears for all clients.
 
 ## Project structure
+```text
 collaborative-canvas/
 ├── client/
 │   ├── index.html            # Main HTML file
@@ -56,6 +57,7 @@ collaborative-canvas/
 ├── package.json              # Project dependencies and scripts
 ├── README.md                 # Project overview and documentation
 └── ARCHITECTURE.md           # Detailed system architecture
+```
 
 
 ## Known limitations / bugs
