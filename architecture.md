@@ -3,6 +3,7 @@
 ## Overview
 Clients capture pointer input and emit operations (ops) to server using WebSockets (Socket.io). Server stores canonical op history per room and broadcasts ops back to all clients. Clients re-render canvas from canonical history.
 ## Data flow 
+```text
 ┌──────────────────┐
 │   User Pointer    │
 └─────────┬────────┘
@@ -32,6 +33,7 @@ undo / redo / clear
 → server updates history
 → emits history_update
 → clients re-render
+```
 
 ## WebSocket protocol (messages)
 
