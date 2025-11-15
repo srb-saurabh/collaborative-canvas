@@ -1,46 +1,130 @@
 # ARCHITECTURE
 
 ## Overview
-Clients capture pointer input and emit **operations (ops)** to server using WebSockets (Socket.io). Server stores canonical op history per room and broadcasts ops back to all clients. Clients re-render canvas from canonical history.
+Clients capture pointer input and emit operations (ops) to server using WebSockets (Socket.io). Server stores canonical op history per room and broadcasts ops back to all clients. Clients re-render canvas from canonical history.
+## Data flow 
+1. **User Pointer** 
+     ↓ (pointer events sampled & smoothed)
+2. **Client: sampling → build op {type, points[], color, width}**
+     ↓ (emit via Socket.io)
+3. **Server: receive op → assign id, timestamp → append to room.history**
+     ↓ (broadcast op to room)
+4. **All Clients: receive op → match/replace optimistic op → renderFromHistory**
+     ↕ (undo/redo or clear: server updates history and emits history_update → clients re-render)
+## WebSocket protocol (messages)
 
-## Data flow
-1. User draws → client collects sampled points, batches them into an `op`.
-2. Client emits `op` to server.
-3. Server appends op to room history, assigns an `id`, broadcasts op to room.
-4. All clients receive op and update their local history (replace optimistic local op if possible), then re-render.
+All messages use JSON objects over Socket.io.
 
-## WebSocket protocol
-- `join` → `{ roomId, name }` — client asks to join a room.
-- `init` ← `{ userId, history, users }` — server initial state.
-- `op` ↔ `{ id?, userId?, type, points[], color, width, timestamp, undone? }` — stroke/erase op.
-- `cursor` → `{ x, y, color }` — pointer position broadcast to others.
-- `undo` → `{ opId }` — request to mark an op undone (global).
-- `redo` → `{ opId }` — request to mark undone=false.
-- `history_update` ← `{ history }` — server sends entire canonical history.
+### Client → Server
 
-## Undo/Redo strategy
-- Server stores ordered `history[]` of ops with `undone` flag.
-- Undo: client requests server to toggle `undone=true` for a given opId.
-- Redo: `undone=false`.
-- Rendering: clients skip ops with `op.undone === true`.
-- Reason: operation-based global undo ensures deterministic canvas state and simple server reconciliation.
-- Tradeoffs:
-  - Pro: Simple, consistent across clients.
-  - Con: Does not implement selective or per-user undo semantics nor Operational Transforms (OT) / CRDTs; undoing someone else's op is allowed (policy choice).
+- join { roomId, name }
+Join room; server replies with init.
 
-## Conflict resolution
-- Drawing is additive: simultaneous strokes do not conflict — they are appended in history.
-- Erase ops are special ops using `globalCompositeOperation = 'destination-out'` and appended as normal ops. Overlapping strokes are resolved by op order during replay.
-- No OT/CRDT — server ordering determines final output. For high concurrency and collaborative editing (text), OT/CRDT needed; for drawing additive model is acceptable.
+- op { id?, type: 'stroke'|'erase', points: [{x,y,t},...], color, width }
+Submit a completed or batched stroke/erase operation. id optional — server assigns authoritative id.
 
-## Performance decisions
-- Client sampling + rAF: reduces frequency of emitted events and smooths strokes.
-- Quadratic curve smoothing during render: improves visual quality without complex path simplification.
-- Re-render-from-history: simpler and robust; acceptable for small-to-medium history sizes. For large-scale, switch to tiled layers or incremental snapshots.
-- Batching: client emits per-stroke (batched points) rather than per-pixel events.
+- cursor { x, y, color }
+Low-frequency pointer position broadcast for cursor indicators.
 
-## Scaling & improvements
-- Persist history to DB for persistence/load.
-- Use snapshots: periodically persist canvas bitmap + truncate old ops.
-- Use CRDT or operation transforms for complex collaborative edits.
-- Optimize rendering: incremental layering, spatial partitioning, or remote delta patches.
+- undo { opId }
+Request server to mark op undone.
+
+- redo { opId }
+Request server to unmark op undone.
+
+- clear {}
+Clear canvas (server wipes history).
+
+### Server → Client
+
+- init { userId, history: [ops], users: [user] }
+Initial room state on join.
+
+- op { id, userId, type, points, color, width, timestamp, undone? }
+Broadcast when an op is appended.
+
+- cursor { userId, name, x, y, color }
+Broadcast pointer positions to other clients.
+
+- history_update { history }
+Sent after undo/redo/clear to provide canonical history snapshot.
+
+- users_update { users }
+Sent on join/disconnect.
+
+Design rationale:
+
+Use op objects (operation-based) rather than raw bitmaps — smaller payloads and semantics for undo/redo.
+
+Use history_update when state-changing control actions occur (undo/redo/clear) to force canonical reconciliation.
+
+## Undo / Redo strategy (global)
+
+- Server stores ordered history[] of ops; each op has undone: boolean.
+
+- Undo: client requests undo with an opId. Server sets op.undone = true and emits history_update.
+
+- Redo: server sets op.undone = false and emits history_update.
+
+Rendering rule: clients skip op where undone === true.
+
+Why this approach:
+
+Deterministic and simple: a single source of truth (server) ensures all clients stay consistent.
+
+Avoids complex Operational Transforms or CRDTs — acceptable because drawing is mostly additive and order-determined.
+
+Tradeoff: global undo affects anyone's operations; per-user undo would require additional ownership semantics or more advanced CRDT/OT logic.
+
+Edge cases & notes:
+
+Undo selection policy: client selects "last non-undone op" by default (global LIFO). Could be changed (per-user, specific opId selection) with minor UI/server changes.
+
+History size: re-rendering full history is used for correctness; snapshotting recommended for large histories.
+
+### Performance decisions & optimizations
+
+Choices made and why:
+
+- Batched ops (client-side sampling)
+
+Collect points while pointer is down, emit one op per stroke (not per pixel).
+
+Reduces network chatter, lowers CPU on server.
+
+- requestAnimationFrame for rendering
+
+ Use rAF to throttle UI updates and keep rendering in sync with browser paint cycles.
+
+- Quadratic curve smoothing
+
+Use simple quadratic curves between sampled points for visually smooth strokes without heavy path simplification.
+
+- Optimistic rendering + server reconciliation
+
+Immediate user feedback locally; server op arrival reconciles authoritative state. Balances latency and consistency.
+
+- Re-render-from-history
+
+Simpler, correct approach for small-to-medium sessions.
+
+For scale: implement periodic bitmap snapshots (PNG) + truncate old ops, or use incremental layered canvases to redraw only changed regions.
+
+- Eraser as operation
+
+Use globalCompositeOperation='destination-out' for erase ops so they compose predictably in replay.
+
+### Conflict resolution (how simultaneous drawing is handled)
+
+- Principle: operations are commutative only by temporal order — the server orders ops and that order determines the final composed image.
+
+- Additive model: strokes and erase ops are appended; overlapping strokes resolved by replay order. Erase ops remove pixels already drawn earlier in history according to compositing rules.
+
+- No OT/CRDT applied: for drawing this is acceptable; perfect merging not required. If strict merge semantics or collaborative editing (text/structured data) were required, adopt CRDT/OT.
+
+Consequences:
+
+- Simultaneous strokes do not block each other — both appear based on server ordering.
+
+- Simultaneous identical strokes may lead to optimistic-matching heuristics failing (client may try to match local optimistic op to server op); handled with a simple heuristic (match by first/last point proximity), but can fail in edge cases.
+
