@@ -1,8 +1,9 @@
 # ARCHITECTURE
 
 ## Overview
-Clients capture pointer input and emit operations (ops) to server using WebSockets (Socket.io). Server stores canonical op history per room and broadcasts ops back to all clients. Clients re-render canvas from canonical history.
+Clients capture pointer input and emit operations (ops) to the server using WebSockets (Socket.io). Server stores canonical op history per room and broadcasts ops back to all clients. Clients re-render canvas from canonical history.
 ## Data flow 
+
 ```text
 ┌──────────────────┐
 │   User Pointer    │
@@ -41,40 +42,88 @@ All messages use JSON objects over Socket.io.
 
 ### Client → Server
 
-- join { roomId, name }
-Join room; server replies with init.
+- `join` `{ roomId, name }`  
+  Join room; server replies with `init`.
 
-- op { id?, type: 'stroke'|'erase', points: [{x,y,t},...], color, width }
-Submit a completed or batched stroke/erase operation. id optional — server assigns authoritative id.
+- `op` `{ id?, type: 'stroke'|'erase', points: [{x,y,t},...], color, width }`  
+  Submit a completed or batched stroke/erase operation. `id` optional — server assigns authoritative id.
 
-- cursor { x, y, color }
-Low-frequency pointer position broadcast for cursor indicators.
+- `cursor` `{ x, y, color }`  
+  Low-frequency pointer position broadcast for cursor indicators.
 
-- undo { opId }
-Request server to mark op undone.
+- `undo` `{ opId }`  
+  Request server to mark op undone.
 
-- redo { opId }
-Request server to unmark op undone.
+- `redo` `{ opId }`  
+  Request server to unmark op undone.
 
-- clear {}
-Clear canvas (server wipes history).
+- `clear` `{}`  
+  Clear canvas (server wipes history).
 
 ### Server → Client
 
-- init { userId, history: [ops], users: [user] }
-Initial room state on join.
+- `init` `{ userId, history: [ops], users: [user] }`  
+  Initial room state on join.
 
-- op { id, userId, type, points, color, width, timestamp, undone? }
-Broadcast when an op is appended.
+- `op` `{ id, userId, type, points, color, width, timestamp, undone? }`  
+  Broadcast when an op is appended.
 
-- cursor { userId, name, x, y, color }
-Broadcast pointer positions to other clients.
+- `cursor` `{ userId, name, x, y, color }`  
+  Broadcast pointer positions to other clients.
 
-- history_update { history }
-Sent after undo/redo/clear to provide canonical history snapshot.
+- `history_update` `{ history }`  
+  Sent after undo/redo/clear to provide canonical history snapshot.
 
-- users_update { users }
-Sent on join/disconnect.
+- `users_update` `{ users }`  
+  Sent on join/disconnect.
+
+### Example payloads
+
+**Client → Server (`op`)**
+```json
+{
+  "type": "op",
+  "op": {
+    "type": "stroke",
+    "points": [
+      { "x": 12, "y": 34, "t": 1690000000000 },
+      { "x": 15, "y": 36, "t": 1690000000020 }
+    ],
+    "color": "#000000",
+    "width": 4
+  }
+}
+```
+
+**Server → Clients (broadcast `op`)**
+```json
+{
+  "id": "146002b6-dbff-411d-8a1f-b21979f6b240",
+  "userId": "0c027700-012d-49ee-98e7-354d367336cd",
+  "type": "stroke",
+  "points": [
+    { "x": 12, "y": 34, "t": 1690000000000 },
+    { "x": 15, "y": 36, "t": 1690000000020 }
+  ],
+  "color": "#000000",
+  "width": 4,
+  "timestamp": 1690000000030,
+  "undone": false
+}
+```
+
+
+### Persistence & scaling
+
+Persistence: take periodic PNG snapshots of the canvas (for example every 500 ops or every 5 minutes) and save them to disk or an S3-compatible store; on startup, load the latest snapshot and then replay only the ops newer than that snapshot to reconstruct full canvas state.
+
+### Scaling plan
+
+- Use Redis pub/sub to broadcast ops across multiple server instances and store history in a shared DB.
+
+- Snapshot + truncate: periodically persist canvas bitmap and trim old ops to bounded history.
+
+- Shard rooms across instances by room hash or use a coordinated routing layer for high-concurrency rooms.
 
 #### Design rationale:
 
