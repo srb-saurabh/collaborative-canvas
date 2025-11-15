@@ -42,18 +42,21 @@ Test checklist:
 ## Project structure
 collaborative-canvas/
 ├── client/
-│ ├── index.html # Main HTML file
-│ ├── style.css # Styles for the canvas UI
-│ ├── canvas.js # Canvas drawing logic
-│ ├── websocket.js # WebSocket (Socket.io) client
-│ └── main.js # UI wiring and handlers
+│   ├── index.html            # Main HTML file
+│   ├── style.css             # Styles for the canvas UI
+│   ├── canvas.js             # Canvas drawing logic
+│   ├── websocket.js          # WebSocket (Socket.io) client
+│   └── main.js               # UI wiring and handlers
+│
 ├── server/
-│ ├── server.js # Express + Socket.io server
-│ ├── rooms.js # Room + user management
-│ └── drawing-state.js # Operation history (undo/redo)
-├── package.json # Project dependencies and scripts
-├── README.md # Project overview and documentation
-└── ARCHITECTURE.md # Detailed system architecture
+│   ├── server.js             # Express + Socket.io server
+│   ├── rooms.js              # Room + user management
+│   └── drawing-state.js      # Operation history (undo/redo)
+│
+├── package.json              # Project dependencies and scripts
+├── README.md                 # Project overview and documentation
+└── ARCHITECTURE.md           # Detailed system architecture
+
 
 ## Known limitations / bugs
 
