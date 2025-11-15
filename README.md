@@ -11,19 +11,29 @@ A real-time multi-user drawing canvas built with plain HTML5 Canvas and vanilla 
 ---
 
 ## Quick start (works with `npm install && npm start`)
+
 1. Clone:
-   
+   ```bash
    git clone https://github.com/srb-saurabh/collaborative-canvas.git
    cd collaborative-canvas
-3. `npm install`
-4. `npm start`
-5. Open `http://localhost:3000` in two or more browser windows to test multi-user drawing.
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the server:
+   ```bash
+   npm start
+   ```
+4. Open `http://localhost:3000` in multiple browser windows.
+
+
 
 ## How to test with multiple users
 
 - Same machine: open the URL in two tabs or one normal + one incognito/private window. Use different names when prompted. Draw in one tab — the other should show strokes and cursors live.
 
-- Different machines (LAN): find the server machine IP (e.g., 192.168.1.x) and open http://<IP>:3000 from other devices. Ensure firewall allows incoming connections to port 3000.
+- Different machines (LAN): find the server machine IP (e.g., 192.168.1.x) and open http://YOUR_LOCAL_IP:3000 from other devices. Ensure firewall allows incoming connections to port 3000.
 
 - Deployed demo: open the demo URL in multiple tabs or share the link.
 
@@ -62,7 +72,7 @@ collaborative-canvas/
 
 ## Known limitations / bugs
 
-- Global undo semantics: undo toggles the last global operation (server-side undone flag). This undoes anyone’s action — acceptable for this assignment but not per-user undo. Documented in ARCHITECTURE.md.
+- Global undo semantics: undo toggles the last global operation (server-side undone flag). 
 
 - No persistence: drawing history is kept in-memory. Server restart clears canvas.
 
@@ -75,6 +85,14 @@ collaborative-canvas/
 - Limited testing on mobile browsers: basic pointer events supported; some devices may require tuning.
 
 ## Time spent
-Estimated 6–10 hours to design, implementation, testing, and deployment.
+
+- ~2.5 hours canvas implementation (brush, eraser, smoothing)
+- ~1.5 hours WebSocket sync + cursor indicators
+- ~2 hours undo/redo + history logic
+- ~1 hour bug fixing + edge cases
+- ~1 hour writing documentation + deployment
+
+**Total: ~8 hours**
+
 
 
